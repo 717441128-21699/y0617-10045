@@ -179,9 +179,10 @@ function InstanceDetail() {
   return (
     <div>
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button className="btn" onClick={() => navigate('/instances')}>← 返回</button>
           <h1 className="page-title">{instance.definitionName}</h1>
+          <span className="tag tag-blue">v{instance.definitionVersion}</span>
           {getStatusTag(instance.status)}
         </div>
         <div className="page-actions">

@@ -35,10 +35,13 @@ export const api = {
 
   getDefinitions: () => request<FlowDefinition[]>('/definitions'),
   getDefinition: (id: string) => request<FlowDefinition>(`/definitions/${id}`),
+  getDefinitionVersions: (id: string) => request<FlowDefinition[]>(`/definitions/${id}/versions`),
   createDefinition: (data: Partial<FlowDefinition>) => 
     request<FlowDefinition>('/definitions', { method: 'POST', body: JSON.stringify(data) }),
   updateDefinition: (id: string, data: Partial<FlowDefinition>) => 
     request<FlowDefinition>(`/definitions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  createNewVersion: (id: string) =>
+    request<FlowDefinition>(`/definitions/${id}/new-version`, { method: 'POST' }),
   deleteDefinition: (id: string) => 
     request<void>(`/definitions/${id}`, { method: 'DELETE' }),
   publishDefinition: (id: string) => 
@@ -61,5 +64,9 @@ export const api = {
   approveTask: (taskId: string, comment?: string) =>
     request<FlowInstance>(`/tasks/${taskId}/approve`, { method: 'POST', body: JSON.stringify({ comment }) }),
   rejectTask: (taskId: string, comment?: string) =>
-    request<FlowInstance>(`/tasks/${taskId}/reject`, { method: 'POST', body: JSON.stringify({ comment }) })
+    request<FlowInstance>(`/tasks/${taskId}/reject`, { method: 'POST', body: JSON.stringify({ comment }) }),
+  transferTask: (taskId: string, targetUser: string, comment?: string) =>
+    request<FlowInstance>(`/tasks/${taskId}/transfer`, { method: 'POST', body: JSON.stringify({ targetUser, comment }) }),
+  addSignTask: (taskId: string, targetUser: string, comment?: string) =>
+    request<FlowInstance>(`/tasks/${taskId}/add-sign`, { method: 'POST', body: JSON.stringify({ targetUser, comment }) })
 };

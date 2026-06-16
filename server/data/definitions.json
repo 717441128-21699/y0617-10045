@@ -1,6 +1,7 @@
 {
-  "12cd2c9a-8a51-41f4-b855-1ca3aba517e7": {
-    "id": "12cd2c9a-8a51-41f4-b855-1ca3aba517e7",
+  "c3815c85-a9cc-4206-818e-61704cf4f12d": {
+    "id": "c3815c85-a9cc-4206-818e-61704cf4f12d",
+    "versionGroupId": "c3815c85-a9cc-4206-818e-61704cf4f12d",
     "name": "请假审批流程",
     "description": "员工请假审批流程，包含部门主管审批和HR备案",
     "nodes": [
@@ -95,13 +96,14 @@
         "type": "textarea"
       }
     ],
-    "createdAt": 1781642590524,
-    "updatedAt": 1781642590524,
+    "createdAt": 1781644613380,
+    "updatedAt": 1781644613380,
     "published": true,
     "version": 1
   },
-  "4b4d7d10-8f13-42ef-a894-167952275e23": {
-    "id": "4b4d7d10-8f13-42ef-a894-167952275e23",
+  "26cd24c7-b81a-4e9a-a3ce-d94679a1b3d2": {
+    "id": "26cd24c7-b81a-4e9a-a3ce-d94679a1b3d2",
+    "versionGroupId": "26cd24c7-b81a-4e9a-a3ce-d94679a1b3d2",
     "name": "报销审批流程",
     "description": "费用报销审批流程，金额超过5000需要财务总监审批",
     "nodes": [
@@ -255,8 +257,8 @@
         "type": "textarea"
       }
     ],
-    "createdAt": 1781642590524,
-    "updatedAt": 1781642590524,
+    "createdAt": 1781644613380,
+    "updatedAt": 1781644613380,
     "published": true,
     "version": 1
   }

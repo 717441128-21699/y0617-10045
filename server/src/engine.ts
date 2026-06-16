@@ -95,7 +95,9 @@ export class WorkflowEngine {
     const instance: FlowInstance = {
       id: uuidv4(),
       definitionId: definition.id,
+      definitionVersionGroupId: definition.versionGroupId,
       definitionName: definition.name,
+      definitionVersion: definition.version,
       status: InstanceStatus.RUNNING,
       formData,
       currentNodeIds: [],
@@ -268,13 +270,13 @@ export class WorkflowEngine {
     execution.approvedBy.push(operator);
 
     const mode = node.config?.mode || ApprovalMode.ANY;
-    const approvers = node.config?.approvers || [];
+    const assignees = execution.assignees || [];
     
     let passed = false;
     if (mode === ApprovalMode.ANY) {
-      passed = execution.approvedBy.length >= 1;
+      passed = execution.approvedBy!.length >= 1;
     } else {
-      passed = execution.approvedBy.length >= approvers.length;
+      passed = execution.approvedBy!.length >= assignees.length;
     }
 
     this.addLog(instance, node.id, node.name, '审批通过', operator, comment || '');
@@ -359,6 +361,134 @@ export class WorkflowEngine {
     return instance;
   }
 
+  transferTask(taskId: string, operator: string, targetUser: string, comment?: string): FlowInstance | null {
+    const task = store.getTask(taskId);
+    if (!task || task.status !== 'pending') {
+      return null;
+    }
+
+    if (task.assignee !== operator) {
+      return null;
+    }
+
+    if (targetUser === operator) {
+      return null;
+    }
+
+    const instance = store.getInstance(task.instanceId);
+    if (!instance || instance.status !== InstanceStatus.RUNNING) {
+      return null;
+    }
+
+    const definition = store.getDefinition(instance.definitionId);
+    if (!definition) {
+      return null;
+    }
+
+    const node = this.getNode(definition.nodes, task.nodeId);
+    if (!node) {
+      return null;
+    }
+
+    const execution = instance.executions[task.nodeId];
+    if (!execution || !execution.assignees) {
+      return null;
+    }
+
+    if (execution.assignees.includes(targetUser)) {
+      return null;
+    }
+
+    task.status = 'transferred' as any;
+    store.saveTask(task);
+
+    const newTask: Task = {
+      id: uuidv4(),
+      instanceId: instance.id,
+      nodeId: node.id,
+      nodeName: node.name,
+      definitionName: instance.definitionName,
+      assignee: targetUser,
+      status: 'pending',
+      createdAt: Date.now(),
+      formData: { ...instance.formData },
+      startedBy: instance.startedBy,
+      source: 'transfer',
+      transferredFrom: operator
+    };
+    store.saveTask(newTask);
+
+    execution.assignees = execution.assignees.filter(a => a !== operator);
+    execution.assignees.push(targetUser);
+
+    this.addLog(instance, node.id, node.name, '转办', operator, `转办给 ${targetUser}${comment ? `，理由：${comment}` : ''}`);
+
+    store.saveInstance(instance);
+    return instance;
+  }
+
+  addSignTask(taskId: string, operator: string, targetUser: string, comment?: string): FlowInstance | null {
+    const task = store.getTask(taskId);
+    if (!task || task.status !== 'pending') {
+      return null;
+    }
+
+    if (task.assignee !== operator) {
+      return null;
+    }
+
+    if (targetUser === operator) {
+      return null;
+    }
+
+    const instance = store.getInstance(task.instanceId);
+    if (!instance || instance.status !== InstanceStatus.RUNNING) {
+      return null;
+    }
+
+    const definition = store.getDefinition(instance.definitionId);
+    if (!definition) {
+      return null;
+    }
+
+    const node = this.getNode(definition.nodes, task.nodeId);
+    if (!node) {
+      return null;
+    }
+
+    const execution = instance.executions[task.nodeId];
+    if (!execution || !execution.assignees) {
+      return null;
+    }
+
+    if (execution.assignees.includes(targetUser)) {
+      return null;
+    }
+
+    const newTask: Task = {
+      id: uuidv4(),
+      instanceId: instance.id,
+      nodeId: node.id,
+      nodeName: node.name,
+      definitionName: instance.definitionName,
+      assignee: targetUser,
+      status: 'pending',
+      createdAt: Date.now(),
+      formData: { ...instance.formData },
+      startedBy: instance.startedBy,
+      source: 'add_sign',
+      addSignedBy: operator
+    };
+    store.saveTask(newTask);
+
+    execution.assignees.push(targetUser);
+
+    this.addLog(instance, node.id, node.name, '加签', operator, `加签 ${targetUser} 参与审批${comment ? `，理由：${comment}` : ''}`);
+
+    store.saveInstance(instance);
+    return instance;
+  }
+
   suspendInstance(instanceId: string, operator: string): FlowInstance | null {
     const instance = store.getInstance(instanceId);
     if (!instance || instance.status !== InstanceStatus.RUNNING) {
@@ -413,16 +543,101 @@ export class WorkflowEngine {
 
     instance.status = InstanceStatus.TERMINATED;
     instance.endedAt = Date.now();
+
+    const previousNodeIds = [...instance.currentNodeIds];
     instance.currentNodeIds = [];
 
-    for (const nodeId of instance.currentNodeIds) {
-      store.cancelTasksForNode(instance.id, nodeId);
+    for (const nodeId of previousNodeIds) {
+      const exec = instance.executions[nodeId];
+      if (exec && (exec.status === NodeStatus.PENDING || exec.status === NodeStatus.RUNNING)) {
+        exec.status = NodeStatus.SKIPPED;
+        exec.endTime = Date.now();
+      }
     }
+
+    store.cancelTasksForInstance(instance.id);
 
     this.addLog(instance, '', '系统', '强制终止', operator, reason || '管理员强制终止流程');
     store.saveInstance(instance);
 
     return instance;
+  }
+
+  createDefinition(data: Partial<FlowDefinition>): FlowDefinition {
+    const now = Date.now();
+    const id = uuidv4();
+    const definition: FlowDefinition = {
+      id,
+      versionGroupId: id,
+      name: data.name || '新流程',
+      description: data.description || '',
+      nodes: data.nodes || [],
+      edges: data.edges || [],
+      formFields: data.formFields || [],
+      createdAt: now,
+      updatedAt: now,
+      published: false,
+      version: 1
+    };
+    store.saveDefinition(definition);
+    return definition;
+  }
+
+  updateDefinition(id: string, data: Partial<FlowDefinition>): FlowDefinition | null {
+    const existing = store.getDefinition(id);
+    if (!existing) return null;
+
+    if (existing.published) {
+      return null;
+    }
+
+    const updated: FlowDefinition = {
+      ...existing,
+      name: data.name !== undefined ? data.name : existing.name,
+      description: data.description !== undefined ? data.description : existing.description,
+      nodes: data.nodes !== undefined ? data.nodes : existing.nodes,
+      edges: data.edges !== undefined ? data.edges : existing.edges,
+      formFields: data.formFields !== undefined ? data.formFields : existing.formFields,
+      updatedAt: Date.now()
+    };
+    store.saveDefinition(updated);
+    return updated;
+  }
+
+  publishDefinition(id: string): FlowDefinition | null {
+    const existing = store.getDefinition(id);
+    if (!existing) return null;
+
+    if (existing.published) {
+      return existing;
+    }
+
+    existing.published = true;
+    existing.updatedAt = Date.now();
+    store.saveDefinition(existing);
+    return existing;
+  }
+
+  createNewVersion(versionGroupId: string): FlowDefinition | null {
+    const versions = store.listVersionsByGroup(versionGroupId);
+    if (versions.length === 0) return null;
+
+    const latest = versions[0];
+    const newId = uuidv4();
+    const newVersion: FlowDefinition = {
+      ...latest,
+      id: newId,
+      version: latest.version + 1,
+      published: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    store.saveDefinition(newVersion);
+    return newVersion;
+  }
+
+  getLatestPublishedDefinition(versionGroupId: string): FlowDefinition | null {
+    return store.getLatestPublishedDefinition(versionGroupId) || null;
   }
 
   isAdmin(user: string): boolean {

@@ -42,8 +42,17 @@ function DefinitionList() {
     navigate('/definitions/new');
   };
 
-  const handleEdit = (id: string) => {
-    navigate(`/definitions/${id}`);
+  const handleEdit = async (def: FlowDefinition) => {
+    if (def.published) {
+      try {
+        const newVersion = await api.createNewVersion(def.id);
+        navigate(`/definitions/${newVersion.id}`);
+      } catch (e: any) {
+        alert('创建新版本失败：' + e.message);
+      }
+    } else {
+      navigate(`/definitions/${def.id}`);
+    }
   };
 
   const handleStartInstance = (def: FlowDefinition) => {
@@ -138,7 +147,7 @@ function DefinitionList() {
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button className="btn btn-sm" onClick={() => handleEdit(def.id)}>
+                        <button className="btn btn-sm" onClick={() => handleEdit(def)}>
                           编辑
                         </button>
                         {def.published && (

@@ -26,7 +26,7 @@ router.get('/me', (req, res) => {
 });
 
 router.get('/definitions', (_req, res) => {
-  const definitions = store.listDefinitions();
+  const definitions = store.listLatestDefinitions();
   res.json({ success: true, data: definitions });
 });
 
@@ -38,51 +38,42 @@ router.get('/definitions/:id', (req, res) => {
   res.json({ success: true, data: def });
 });
 
-router.post('/definitions', (req, res) => {
-  const { name, description, nodes, edges, formFields } = req.body;
-  
-  if (!name || !nodes || !edges) {
-    return res.status(400).json({ success: false, message: '缺少必要参数' });
+router.get('/definitions/:id/versions', (req, res) => {
+  const def = store.getDefinition(req.params.id);
+  if (!def) {
+    return res.status(404).json({ success: false, message: '流程定义不存在' });
   }
+  const versions = store.listVersionsByGroup(def.versionGroupId);
+  res.json({ success: true, data: versions });
+});
 
-  const now = Date.now();
-  const definition: FlowDefinition = {
-    id: uuidv4(),
-    name,
-    description,
-    nodes,
-    edges,
-    formFields: formFields || [],
-    createdAt: now,
-    updatedAt: now,
-    published: false,
-    version: 1
-  };
-
-  store.saveDefinition(definition);
+router.post('/definitions', (req, res) => {
+  const definition = workflowEngine.createDefinition(req.body || {});
   res.json({ success: true, data: definition });
 });
 
 router.put('/definitions/:id', (req, res) => {
+  const updated = workflowEngine.updateDefinition(req.params.id, req.body || {});
+  if (!updated) {
+    const existing = store.getDefinition(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: '流程定义不存在' });
+    }
+    return res.status(400).json({ success: false, message: '已发布的流程不能直接修改，请创建新版本' });
+  }
+  res.json({ success: true, data: updated });
+});
+
+router.post('/definitions/:id/new-version', (req, res) => {
   const existing = store.getDefinition(req.params.id);
   if (!existing) {
     return res.status(404).json({ success: false, message: '流程定义不存在' });
   }
-
-  const { name, description, nodes, edges, formFields } = req.body;
-
-  const updated: FlowDefinition = {
-    ...existing,
-    name: name || existing.name,
-    description: description ?? existing.description,
-    nodes: nodes || existing.nodes,
-    edges: edges || existing.edges,
-    formFields: formFields || existing.formFields,
-    updatedAt: Date.now()
-  };
-
-  store.saveDefinition(updated);
-  res.json({ success: true, data: updated });
+  const newVersion = workflowEngine.createNewVersion(existing.versionGroupId);
+  if (!newVersion) {
+    return res.status(400).json({ success: false, message: '创建新版本失败' });
+  }
+  res.json({ success: true, data: newVersion });
 });
 
 router.delete('/definitions/:id', (req, res) => {
@@ -94,15 +85,10 @@ router.delete('/definitions/:id', (req, res) => {
 });
 
 router.post('/definitions/:id/publish', (req, res) => {
-  const def = store.getDefinition(req.params.id);
+  const def = workflowEngine.publishDefinition(req.params.id);
   if (!def) {
     return res.status(404).json({ success: false, message: '流程定义不存在' });
   }
-
-  def.published = true;
-  def.updatedAt = Date.now();
-  store.saveDefinition(def);
-
   res.json({ success: true, data: def });
 });
 
@@ -123,13 +109,23 @@ router.post('/instances', (req, res) => {
   const { definitionId, formData } = req.body;
   const currentUser = getCurrentUser(req);
 
-  const definition = store.getDefinition(definitionId);
+  let definition = store.getDefinition(definitionId);
+  
+  if (!definition) {
+    definition = store.getLatestPublishedDefinition(definitionId);
+  }
+
   if (!definition) {
     return res.status(404).json({ success: false, message: '流程定义不存在' });
   }
 
   if (!definition.published) {
-    return res.status(400).json({ success: false, message: '流程未发布，无法启动' });
+    const publishedDef = store.getLatestPublishedDefinition(definition.versionGroupId);
+    if (publishedDef) {
+      definition = publishedDef;
+    } else {
+      return res.status(400).json({ success: false, message: '流程未发布，无法启动' });
+    }
   }
 
   try {
@@ -229,6 +225,54 @@ router.post('/tasks/:id/reject', (req, res) => {
   res.json({ success: true, data: instance });
 });
 
+router.post('/tasks/:id/transfer', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const task = store.getTask(req.params.id);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, message: '任务不存在' });
+  }
+  
+  if (task.assignee !== currentUser) {
+    return res.status(403).json({ success: false, message: '无权限操作，该任务不属于您' });
+  }
+  
+  const { targetUser, comment } = req.body;
+  if (!targetUser) {
+    return res.status(400).json({ success: false, message: '请指定转办目标人' });
+  }
+  
+  const instance = workflowEngine.transferTask(req.params.id, currentUser, targetUser, comment);
+  if (!instance) {
+    return res.status(400).json({ success: false, message: '转办失败，任务状态已变更或目标用户无效' });
+  }
+  res.json({ success: true, data: instance });
+});
+
+router.post('/tasks/:id/add-sign', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const task = store.getTask(req.params.id);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, message: '任务不存在' });
+  }
+  
+  if (task.assignee !== currentUser) {
+    return res.status(403).json({ success: false, message: '无权限操作，该任务不属于您' });
+  }
+  
+  const { targetUser, comment } = req.body;
+  if (!targetUser) {
+    return res.status(400).json({ success: false, message: '请指定加签用户' });
+  }
+  
+  const instance = workflowEngine.addSignTask(req.params.id, currentUser, targetUser, comment);
+  if (!instance) {
+    return res.status(400).json({ success: false, message: '加签失败，任务状态已变更或目标用户已在审批列表中' });
+  }
+  res.json({ success: true, data: instance });
+});
+
 router.get('/demo/seed', (_req, res) => {
   const existing = store.listDefinitions();
   if (existing.length > 0) {
@@ -248,8 +292,10 @@ function seedDemoData() {
 
   const now = Date.now();
   
+  const leaveId = uuidv4();
   const leaveDef: FlowDefinition = {
-    id: uuidv4(),
+    id: leaveId,
+    versionGroupId: leaveId,
     name: '请假审批流程',
     description: '员工请假审批流程，包含部门主管审批和HR备案',
     nodes: [
@@ -270,8 +316,10 @@ function seedDemoData() {
     version: 1
   };
 
+  const expenseId = uuidv4();
   const expenseDef: FlowDefinition = {
-    id: uuidv4(),
+    id: expenseId,
+    versionGroupId: expenseId,
     name: '报销审批流程',
     description: '费用报销审批流程，金额超过5000需要财务总监审批',
     nodes: [

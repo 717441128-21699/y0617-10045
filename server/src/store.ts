@@ -50,6 +50,50 @@ class DataStore {
     this.tasks = new Map(
       Object.entries(readJSON<Record<string, Task>>(TASKS_FILE, {}))
     );
+    this.migrateData();
+  }
+
+  private migrateData() {
+    let definitionsChanged = false;
+    for (const def of this.definitions.values()) {
+      if (!def.versionGroupId) {
+        def.versionGroupId = def.id;
+        definitionsChanged = true;
+      }
+      if (!def.version) {
+        def.version = 1;
+        definitionsChanged = true;
+      }
+    }
+    if (definitionsChanged) {
+      this.persistDefinitions();
+    }
+
+    let instancesChanged = false;
+    for (const inst of this.instances.values()) {
+      if (!inst.definitionVersion) {
+        inst.definitionVersion = 1;
+        instancesChanged = true;
+      }
+      if (!inst.definitionVersionGroupId) {
+        inst.definitionVersionGroupId = inst.definitionId;
+        instancesChanged = true;
+      }
+    }
+    if (instancesChanged) {
+      this.persistInstances();
+    }
+
+    let tasksChanged = false;
+    for (const task of this.tasks.values()) {
+      if (!task.source) {
+        task.source = 'normal';
+        tasksChanged = true;
+      }
+    }
+    if (tasksChanged) {
+      this.persistTasks();
+    }
   }
 
   private persistDefinitions() {
@@ -75,6 +119,28 @@ class DataStore {
 
   listDefinitions(): FlowDefinition[] {
     return Array.from(this.definitions.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  listLatestDefinitions(): FlowDefinition[] {
+    const latestMap = new Map<string, FlowDefinition>();
+    for (const def of this.definitions.values()) {
+      const existing = latestMap.get(def.versionGroupId);
+      if (!existing || def.version > existing.version) {
+        latestMap.set(def.versionGroupId, def);
+      }
+    }
+    return Array.from(latestMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  listVersionsByGroup(versionGroupId: string): FlowDefinition[] {
+    return Array.from(this.definitions.values())
+      .filter(d => d.versionGroupId === versionGroupId)
+      .sort((a, b) => b.version - a.version);
+  }
+
+  getLatestPublishedDefinition(versionGroupId: string): FlowDefinition | undefined {
+    const versions = this.listVersionsByGroup(versionGroupId);
+    return versions.find(d => d.published);
   }
 
   deleteDefinition(id: string): boolean {
@@ -126,7 +192,17 @@ class DataStore {
   cancelTasksForNode(instanceId: string, nodeId: string): void {
     for (const task of this.tasks.values()) {
       if (task.instanceId === instanceId && task.nodeId === nodeId && task.status === 'pending') {
-        task.status = 'cancelled' as any;
+        task.status = 'cancelled';
+        this.tasks.set(task.id, task);
+      }
+    }
+    this.persistTasks();
+  }
+
+  cancelTasksForInstance(instanceId: string): void {
+    for (const task of this.tasks.values()) {
+      if (task.instanceId === instanceId && task.status === 'pending') {
+        task.status = 'cancelled';
         this.tasks.set(task.id, task);
       }
     }

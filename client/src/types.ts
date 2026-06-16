@@ -55,6 +55,7 @@ export interface FlowEdge {
 
 export interface FlowDefinition {
   id: string;
+  versionGroupId: string;
   name: string;
   description?: string;
   nodes: FlowNode[];
@@ -89,7 +90,9 @@ export interface NodeExecution {
 export interface FlowInstance {
   id: string;
   definitionId: string;
+  definitionVersionGroupId: string;
   definitionName: string;
+  definitionVersion: number;
   status: InstanceStatus;
   formData: Record<string, any>;
   currentNodeIds: string[];
@@ -118,8 +121,11 @@ export interface Task {
   nodeName: string;
   definitionName: string;
   assignee: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'transferred';
   createdAt: number;
   formData: Record<string, any>;
   startedBy: string;
+  source?: 'normal' | 'add_sign' | 'transfer';
+  transferredFrom?: string;
+  addSignedBy?: string;
 }

@@ -1,0 +1,57 @@
+{
+  "d81aba88-73f5-487b-916f-7c8112b7093c": {
+    "id": "d81aba88-73f5-487b-916f-7c8112b7093c",
+    "instanceId": "8f241fb8-a516-49c9-92c9-7e4a75864601",
+    "nodeId": "dept_approve",
+    "nodeName": "部门主管审批",
+    "definitionName": "请假审批流程",
+    "assignee": "manager1",
+    "status": "transferred",
+    "createdAt": 1781644651264,
+    "formData": {
+      "amount": 100,
+      "title": "????",
+      "department": "???",
+      "reason": "??"
+    },
+    "startedBy": "employee1",
+    "source": "normal"
+  },
+  "26d3cb3f-2063-4216-b66f-19fc5b1ee026": {
+    "id": "26d3cb3f-2063-4216-b66f-19fc5b1ee026",
+    "instanceId": "8f241fb8-a516-49c9-92c9-7e4a75864601",
+    "nodeId": "dept_approve",
+    "nodeName": "部门主管审批",
+    "definitionName": "请假审批流程",
+    "assignee": "manager2",
+    "status": "pending",
+    "createdAt": 1781644651265,
+    "formData": {
+      "amount": 100,
+      "title": "????",
+      "department": "???",
+      "reason": "??"
+    },
+    "startedBy": "employee1",
+    "source": "normal"
+  },
+  "185e5055-3db2-467d-ad63-2f282f3c9e2a": {
+    "id": "185e5055-3db2-467d-ad63-2f282f3c9e2a",
+    "instanceId": "8f241fb8-a516-49c9-92c9-7e4a75864601",
+    "nodeId": "dept_approve",
+    "nodeName": "部门主管审批",
+    "definitionName": "请假审批流程",
+    "assignee": "manager3",
+    "status": "pending",
+    "createdAt": 1781644703258,
+    "formData": {
+      "amount": 100,
+      "title": "????",
+      "department": "???",
+      "reason": "??"
+    },
+    "startedBy": "employee1",
+    "source": "transfer",
+    "transferredFrom": "manager1"
+  }
+}

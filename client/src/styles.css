@@ -252,6 +252,12 @@ body {
   border: 1px solid #d9d9d9;
 }
 
+.tag-purple {
+  background: #f9f0ff;
+  color: #722ed1;
+  border: 1px solid #d3adf7;
+}
+
 .form-group {
   margin-bottom: 16px;
 }

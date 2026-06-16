@@ -1,0 +1,72 @@
+{
+  "8f241fb8-a516-49c9-92c9-7e4a75864601": {
+    "id": "8f241fb8-a516-49c9-92c9-7e4a75864601",
+    "definitionId": "c3815c85-a9cc-4206-818e-61704cf4f12d",
+    "definitionVersionGroupId": "c3815c85-a9cc-4206-818e-61704cf4f12d",
+    "definitionName": "请假审批流程",
+    "definitionVersion": 1,
+    "status": "running",
+    "formData": {
+      "amount": 100,
+      "title": "????",
+      "department": "???",
+      "reason": "??"
+    },
+    "currentNodeIds": [
+      "dept_approve"
+    ],
+    "executions": {
+      "start": {
+        "nodeId": "start",
+        "nodeName": "开始",
+        "nodeType": "start",
+        "status": "completed",
+        "startTime": 1781644651264,
+        "endTime": 1781644651264
+      },
+      "dept_approve": {
+        "nodeId": "dept_approve",
+        "nodeName": "部门主管审批",
+        "nodeType": "approval",
+        "status": "running",
+        "startTime": 1781644651264,
+        "assignees": [
+          "manager2",
+          "manager3"
+        ],
+        "approvedBy": []
+      }
+    },
+    "logs": [
+      {
+        "id": "571b01da-4aef-45ad-890c-7ea0befa8222",
+        "nodeId": "start",
+        "nodeName": "开始",
+        "action": "开始",
+        "operator": "employee1",
+        "timestamp": 1781644651264,
+        "detail": "流程实例已创建"
+      },
+      {
+        "id": "00cf09b1-8a20-40e7-89d5-a51720712451",
+        "nodeId": "dept_approve",
+        "nodeName": "部门主管审批",
+        "action": "创建审批任务",
+        "operator": "employee1",
+        "timestamp": 1781644651265,
+        "detail": "审批人: manager1, manager2, 模式: 或签"
+      },
+      {
+        "id": "f2f2bc0c-9504-4ad8-8237-47c84c95914a",
+        "nodeId": "dept_approve",
+        "nodeName": "部门主管审批",
+        "action": "转办",
+        "operator": "manager1",
+        "timestamp": 1781644703259,
+        "detail": "转办给 manager3，理由：????"
+      }
+    ],
+    "startedBy": "employee1",
+    "startedAt": 1781644651264
+  }
+}

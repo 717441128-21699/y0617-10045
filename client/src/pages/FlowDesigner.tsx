@@ -19,10 +19,12 @@ function FlowDesigner() {
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [showFormEditor, setShowFormEditor] = useState(false);
   const [isNew, setIsNew] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
 
   useEffect(() => {
     if (id === 'new') {
       setIsNew(true);
+      setIsPublished(false);
       setFlowName('新流程');
       setNodes([
         { id: 'start', type: NodeType.START, name: '开始', x: 50, y: 200 },
@@ -46,6 +48,7 @@ function FlowDesigner() {
           setFlowName(def.name);
           setFlowDesc(def.description || '');
           setFormFields(def.formFields || []);
+          setIsPublished(def.published);
         } catch (e: any) {
           alert('加载失败：' + e.message);
         }
@@ -155,47 +158,71 @@ function FlowDesigner() {
     navigate('/definitions');
   };
 
+  const handleCreateNewVersion = async () => {
+    if (!definition) return;
+    try {
+      const newVersion = await api.createNewVersion(definition.id);
+      navigate(`/definitions/${newVersion.id}`);
+    } catch (e: any) {
+      alert('创建新版本失败：' + e.message);
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button className="btn" onClick={handleBack}>← 返回</button>
-          <h1 className="page-title">
-            <input
-              type="text"
-              style={{ 
-                fontSize: '18px', 
-                border: 'none', 
-                borderBottom: '1px solid transparent',
-                outline: 'none',
-                padding: '4px 0',
-                width: '300px',
-                background: 'transparent'
-              }}
-              value={flowName}
-              onChange={(e) => setFlowName(e.target.value)}
-              placeholder="请输入流程名称"
-            />
+          <h1 className="page-title" style={{ marginBottom: 0 }}>
+            {isPublished && !isNew ? flowName : (
+              <input
+                type="text"
+                style={{ 
+                  fontSize: '18px', 
+                  border: 'none', 
+                  borderBottom: '1px solid transparent',
+                  outline: 'none',
+                  padding: '4px 0',
+                  width: '300px',
+                  background: 'transparent'
+                }}
+                value={flowName}
+                onChange={(e) => setFlowName(e.target.value)}
+                placeholder="请输入流程名称"
+              />
+            )}
           </h1>
+          <span className="tag tag-blue">v{definition?.version || 1}</span>
           {definition?.published && (
             <span className="tag tag-green">已发布</span>
           )}
+          {!definition?.published && !isNew && (
+            <span className="tag tag-gray">草稿</span>
+          )}
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => setShowFormEditor(true)}>
-            表单配置
-          </button>
-          <button className="btn" onClick={() => handleSave(false)}>
-            保存
-          </button>
-          <button className="btn btn-primary" onClick={() => handleSave(true)}>
-            发布
-          </button>
+          {isPublished && !isNew ? (
+            <button className="btn btn-primary" onClick={handleCreateNewVersion}>
+              创建新版本
+            </button>
+          ) : (
+            <>
+              <button className="btn" onClick={() => setShowFormEditor(true)}>
+                表单配置
+              </button>
+              <button className="btn" onClick={() => handleSave(false)}>
+                保存
+              </button>
+              <button className="btn btn-primary" onClick={() => handleSave(true)}>
+                发布
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <div className="flow-designer">
-        <NodePalette />
+        {(!isPublished || isNew) && <NodePalette />}
         <FlowCanvas
           nodes={nodes}
           edges={edges}
@@ -203,13 +230,15 @@ function FlowDesigner() {
           onNodesChange={setNodes}
           onEdgesChange={setEdges}
           onNodeSelect={setSelectedNodeId}
-          mode="design"
+          mode={isPublished && !isNew ? 'view' : 'design'}
         />
-        <NodeProperties
-          node={selectedNode}
-          onNodeChange={handleNodeChange}
-          onDelete={handleNodeDelete}
-        />
+        {(!isPublished || isNew) && (
+          <NodeProperties
+            node={selectedNode}
+            onNodeChange={handleNodeChange}
+            onDelete={handleNodeDelete}
+          />
+        )}
       </div>
 
       {showFormEditor && (
