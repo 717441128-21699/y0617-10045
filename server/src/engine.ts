@@ -14,6 +14,8 @@ import {
 } from './types';
 import { store } from './store';
 
+const ADMIN_USERS = ['admin'];
+
 export class WorkflowEngine {
   private addLog(instance: FlowInstance, nodeId: string, nodeName: string, action: string, operator?: string, detail?: string): void {
     const log: FlowLog = {
@@ -232,6 +234,10 @@ export class WorkflowEngine {
       return null;
     }
 
+    if (task.assignee !== operator) {
+      return null;
+    }
+
     const instance = store.getInstance(task.instanceId);
     if (!instance || instance.status !== InstanceStatus.RUNNING) {
       return null;
@@ -249,6 +255,10 @@ export class WorkflowEngine {
 
     const execution = instance.executions[task.nodeId];
     if (!execution || !execution.approvedBy) {
+      return null;
+    }
+
+    if (execution.approvedBy.includes(operator)) {
       return null;
     }
 
@@ -270,6 +280,11 @@ export class WorkflowEngine {
     this.addLog(instance, node.id, node.name, '审批通过', operator, comment || '');
 
     if (passed) {
+      if (mode === ApprovalMode.ANY) {
+        store.cancelTasksForNode(instance.id, node.id);
+        this.addLog(instance, node.id, node.name, '或签通过，其他待办已取消', operator, `通过人: ${operator}`);
+      }
+
       execution.status = NodeStatus.APPROVED;
       execution.endTime = Date.now();
       execution.comment = comment;
@@ -297,6 +312,10 @@ export class WorkflowEngine {
       return null;
     }
 
+    if (task.assignee !== operator) {
+      return null;
+    }
+
     const instance = store.getInstance(task.instanceId);
     if (!instance || instance.status !== InstanceStatus.RUNNING) {
       return null;
@@ -319,6 +338,8 @@ export class WorkflowEngine {
 
     task.status = 'rejected';
     store.saveTask(task);
+
+    store.cancelTasksForNode(instance.id, node.id);
 
     execution.status = NodeStatus.REJECTED;
     execution.endTime = Date.now();
@@ -344,6 +365,10 @@ export class WorkflowEngine {
       return null;
     }
 
+    if (!ADMIN_USERS.includes(operator)) {
+      return null;
+    }
+
     instance.status = InstanceStatus.SUSPENDED;
     instance.suspendedAt = Date.now();
     
@@ -356,6 +381,10 @@ export class WorkflowEngine {
   resumeInstance(instanceId: string, operator: string): FlowInstance | null {
     const instance = store.getInstance(instanceId);
     if (!instance || instance.status !== InstanceStatus.SUSPENDED) {
+      return null;
+    }
+
+    if (!ADMIN_USERS.includes(operator)) {
       return null;
     }
 
@@ -374,6 +403,10 @@ export class WorkflowEngine {
       return null;
     }
 
+    if (!ADMIN_USERS.includes(operator)) {
+      return null;
+    }
+
     if (instance.status === InstanceStatus.COMPLETED || instance.status === InstanceStatus.TERMINATED) {
       return null;
     }
@@ -382,10 +415,18 @@ export class WorkflowEngine {
     instance.endedAt = Date.now();
     instance.currentNodeIds = [];
 
+    for (const nodeId of instance.currentNodeIds) {
+      store.cancelTasksForNode(instance.id, nodeId);
+    }
+
     this.addLog(instance, '', '系统', '强制终止', operator, reason || '管理员强制终止流程');
     store.saveInstance(instance);
 
     return instance;
+  }
+
+  isAdmin(user: string): boolean {
+    return ADMIN_USERS.includes(user);
   }
 }
 

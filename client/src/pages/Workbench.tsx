@@ -102,7 +102,8 @@ function Workbench() {
     const statusMap: Record<string, { label: string; className: string }> = {
       pending: { label: '待处理', className: 'tag-orange' },
       approved: { label: '已通过', className: 'tag-green' },
-      rejected: { label: '已驳回', className: 'tag-red' }
+      rejected: { label: '已驳回', className: 'tag-red' },
+      cancelled: { label: '已取消', className: 'tag-gray' }
     };
     const info = statusMap[status] || { label: status, className: 'tag-gray' };
     return <span className={`tag ${info.className}`}>{info.label}</span>;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FlowInstance, FlowDefinition, NodeStatus, InstanceStatus, FlowNode } from '../types';
-import { api } from '../api';
+import { api, MeInfo } from '../api';
 
 function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -9,17 +9,22 @@ function InstanceDetail() {
   const [instance, setInstance] = useState<FlowInstance | null>(null);
   const [definition, setDefinition] = useState<FlowDefinition | null>(null);
   const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState<MeInfo | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
-      const inst = await api.getInstance(id);
+      const [inst, meInfo] = await Promise.all([
+        api.getInstance(id),
+        api.getMe()
+      ]);
+      setMe(meInfo);
       setInstance(inst);
       
-      const def = await api.getDefinition(inst.definitionId);
-      setDefinition(def);
+      const d = await api.getDefinition(inst.definitionId);
+      setDefinition(d);
     } catch (e: any) {
       console.error(e);
       alert('加载失败：' + e.message);
@@ -180,17 +185,17 @@ function InstanceDetail() {
           {getStatusTag(instance.status)}
         </div>
         <div className="page-actions">
-          {instance.status === InstanceStatus.RUNNING && (
-            <button className="btn btn-warning" onClick={handleSuspend}>
+          {me?.isAdmin && instance.status === InstanceStatus.RUNNING && (
+            <button className="btn" onClick={handleSuspend}>
               挂起
             </button>
           )}
-          {instance.status === InstanceStatus.SUSPENDED && (
+          {me?.isAdmin && instance.status === InstanceStatus.SUSPENDED && (
             <button className="btn btn-primary" onClick={handleResume}>
               恢复
             </button>
           )}
-          {(instance.status === InstanceStatus.RUNNING || instance.status === InstanceStatus.SUSPENDED) && (
+          {me?.isAdmin && (instance.status === InstanceStatus.RUNNING || instance.status === InstanceStatus.SUSPENDED) && (
             <button className="btn btn-danger" onClick={handleTerminate}>
               强制终止
             </button>

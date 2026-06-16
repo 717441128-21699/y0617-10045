@@ -25,7 +25,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return data.data;
 }
 
+export interface MeInfo {
+  user: string;
+  isAdmin: boolean;
+}
+
 export const api = {
+  getMe: () => request<MeInfo>('/me'),
+
   getDefinitions: () => request<FlowDefinition[]>('/definitions'),
   getDefinition: (id: string) => request<FlowDefinition>(`/definitions/${id}`),
   createDefinition: (data: Partial<FlowDefinition>) => 

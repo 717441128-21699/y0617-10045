@@ -10,6 +10,21 @@ const getCurrentUser = (req: express.Request): string => {
   return (req.headers['x-user'] as string) || 'admin';
 };
 
+const isAdmin = (user: string): boolean => {
+  return workflowEngine.isAdmin(user);
+};
+
+router.get('/me', (req, res) => {
+  const user = getCurrentUser(req);
+  res.json({
+    success: true,
+    data: {
+      user,
+      isAdmin: isAdmin(user)
+    }
+  });
+});
+
 router.get('/definitions', (_req, res) => {
   const definitions = store.listDefinitions();
   res.json({ success: true, data: definitions });
@@ -127,6 +142,9 @@ router.post('/instances', (req, res) => {
 
 router.post('/instances/:id/suspend', (req, res) => {
   const currentUser = getCurrentUser(req);
+  if (!isAdmin(currentUser)) {
+    return res.status(403).json({ success: false, message: '无权限操作，仅管理员可挂起流程' });
+  }
   const instance = workflowEngine.suspendInstance(req.params.id, currentUser);
   if (!instance) {
     return res.status(400).json({ success: false, message: '无法挂起流程' });
@@ -136,6 +154,9 @@ router.post('/instances/:id/suspend', (req, res) => {
 
 router.post('/instances/:id/resume', (req, res) => {
   const currentUser = getCurrentUser(req);
+  if (!isAdmin(currentUser)) {
+    return res.status(403).json({ success: false, message: '无权限操作，仅管理员可恢复流程' });
+  }
   const instance = workflowEngine.resumeInstance(req.params.id, currentUser);
   if (!instance) {
     return res.status(400).json({ success: false, message: '无法恢复流程' });
@@ -145,6 +166,9 @@ router.post('/instances/:id/resume', (req, res) => {
 
 router.post('/instances/:id/terminate', (req, res) => {
   const currentUser = getCurrentUser(req);
+  if (!isAdmin(currentUser)) {
+    return res.status(403).json({ success: false, message: '无权限操作，仅管理员可终止流程' });
+  }
   const { reason } = req.body;
   const instance = workflowEngine.terminateInstance(req.params.id, currentUser, reason);
   if (!instance) {
@@ -167,25 +191,49 @@ router.get('/tasks/all', (req, res) => {
 
 router.post('/tasks/:id/approve', (req, res) => {
   const currentUser = getCurrentUser(req);
+  const task = store.getTask(req.params.id);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, message: '任务不存在' });
+  }
+  
+  if (task.assignee !== currentUser) {
+    return res.status(403).json({ success: false, message: '无权限操作，该任务不属于您' });
+  }
+  
   const { comment } = req.body;
   const instance = workflowEngine.approveTask(req.params.id, currentUser, comment);
   if (!instance) {
-    return res.status(400).json({ success: false, message: '审批失败' });
+    return res.status(400).json({ success: false, message: '审批失败，任务状态已变更或流程已结束' });
   }
   res.json({ success: true, data: instance });
 });
 
 router.post('/tasks/:id/reject', (req, res) => {
   const currentUser = getCurrentUser(req);
+  const task = store.getTask(req.params.id);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, message: '任务不存在' });
+  }
+  
+  if (task.assignee !== currentUser) {
+    return res.status(403).json({ success: false, message: '无权限操作，该任务不属于您' });
+  }
+  
   const { comment } = req.body;
   const instance = workflowEngine.rejectTask(req.params.id, currentUser, comment);
   if (!instance) {
-    return res.status(400).json({ success: false, message: '驳回失败' });
+    return res.status(400).json({ success: false, message: '驳回失败，任务状态已变更或流程已结束' });
   }
   res.json({ success: true, data: instance });
 });
 
 router.get('/demo/seed', (_req, res) => {
+  const existing = store.listDefinitions();
+  if (existing.length > 0) {
+    return res.json({ success: true, message: '已有数据，跳过演示数据初始化' });
+  }
   seedDemoData();
   res.json({ success: true, message: '演示数据已创建' });
 });

@@ -1,0 +1,263 @@
+{
+  "12cd2c9a-8a51-41f4-b855-1ca3aba517e7": {
+    "id": "12cd2c9a-8a51-41f4-b855-1ca3aba517e7",
+    "name": "请假审批流程",
+    "description": "员工请假审批流程，包含部门主管审批和HR备案",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "开始",
+        "x": 50,
+        "y": 200
+      },
+      {
+        "id": "dept_approve",
+        "type": "approval",
+        "name": "部门主管审批",
+        "x": 250,
+        "y": 200,
+        "config": {
+          "approvers": [
+            "manager1",
+            "manager2"
+          ],
+          "mode": "any"
+        }
+      },
+      {
+        "id": "hr_notify",
+        "type": "notification",
+        "name": "HR备案通知",
+        "x": 470,
+        "y": 200,
+        "config": {
+          "recipients": [
+            "hr1",
+            "hr2"
+          ],
+          "message": "有新的请假申请需要备案"
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "结束",
+        "x": 670,
+        "y": 200
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "target": "dept_approve"
+      },
+      {
+        "id": "e2",
+        "source": "dept_approve",
+        "target": "hr_notify"
+      },
+      {
+        "id": "e3",
+        "source": "hr_notify",
+        "target": "end"
+      }
+    ],
+    "formFields": [
+      {
+        "key": "title",
+        "label": "申请标题",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "amount",
+        "label": "申请金额",
+        "type": "number",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "所属部门",
+        "type": "select",
+        "options": [
+          "技术部",
+          "市场部",
+          "财务部",
+          "人事部"
+        ],
+        "required": true
+      },
+      {
+        "key": "reason",
+        "label": "申请理由",
+        "type": "textarea"
+      }
+    ],
+    "createdAt": 1781642590524,
+    "updatedAt": 1781642590524,
+    "published": true,
+    "version": 1
+  },
+  "4b4d7d10-8f13-42ef-a894-167952275e23": {
+    "id": "4b4d7d10-8f13-42ef-a894-167952275e23",
+    "name": "报销审批流程",
+    "description": "费用报销审批流程，金额超过5000需要财务总监审批",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "开始",
+        "x": 50,
+        "y": 200
+      },
+      {
+        "id": "dept_approve",
+        "type": "approval",
+        "name": "部门主管审批",
+        "x": 250,
+        "y": 200,
+        "config": {
+          "approvers": [
+            "manager1"
+          ],
+          "mode": "any"
+        }
+      },
+      {
+        "id": "condition",
+        "type": "condition",
+        "name": "金额判断",
+        "x": 470,
+        "y": 200,
+        "config": {
+          "field": "amount",
+          "operator": ">",
+          "value": "5000"
+        }
+      },
+      {
+        "id": "finance_approve",
+        "type": "approval",
+        "name": "财务审批",
+        "x": 690,
+        "y": 100,
+        "config": {
+          "approvers": [
+            "finance1"
+          ],
+          "mode": "any"
+        }
+      },
+      {
+        "id": "director_approve",
+        "type": "approval",
+        "name": "财务总监审批",
+        "x": 700,
+        "y": 300,
+        "config": {
+          "approvers": [
+            "director1",
+            "director2"
+          ],
+          "mode": "all"
+        }
+      },
+      {
+        "id": "notify",
+        "type": "notification",
+        "name": "到账通知",
+        "x": 920,
+        "y": 200,
+        "config": {
+          "recipients": [
+            "applicant"
+          ],
+          "message": "报销已审批通过，请注意查收"
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "结束",
+        "x": 1120,
+        "y": 200
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "target": "dept_approve"
+      },
+      {
+        "id": "e2",
+        "source": "dept_approve",
+        "target": "condition"
+      },
+      {
+        "id": "e3",
+        "source": "condition",
+        "target": "finance_approve",
+        "sourceHandle": "false"
+      },
+      {
+        "id": "e4",
+        "source": "condition",
+        "target": "director_approve",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e5",
+        "source": "finance_approve",
+        "target": "notify"
+      },
+      {
+        "id": "e6",
+        "source": "director_approve",
+        "target": "notify"
+      },
+      {
+        "id": "e7",
+        "source": "notify",
+        "target": "end"
+      }
+    ],
+    "formFields": [
+      {
+        "key": "title",
+        "label": "申请标题",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "amount",
+        "label": "申请金额",
+        "type": "number",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "所属部门",
+        "type": "select",
+        "options": [
+          "技术部",
+          "市场部",
+          "财务部",
+          "人事部"
+        ],
+        "required": true
+      },
+      {
+        "key": "reason",
+        "label": "申请理由",
+        "type": "textarea"
+      }
+    ],
+    "createdAt": 1781642590524,
+    "updatedAt": 1781642590524,
+    "published": true,
+    "version": 1
+  }
+}
